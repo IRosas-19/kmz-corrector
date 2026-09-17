@@ -1,30 +1,53 @@
 <!DOCTYPE html>
 <html>
 <head>
-    <title>KMZ Corrector</title>
-
+    <title>KMZ Corrector & Renumerador</title>
     <link rel="stylesheet" href="https://unpkg.com/leaflet/dist/leaflet.css"/>
 
     <style>
         body {
-            font-family: Arial;
+            font-family: Arial, sans-serif;
             margin: 20px;
+            background-color: #fafafa;
+        }
+
+        .container {
+            display: flex;
+            gap: 20px;
+            margin-bottom: 20px;
+        }
+
+        .box {
+            background: #fff;
+            padding: 15px;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+            flex: 1;
         }
 
         #map {
             height: 500px;
             width: 100%;
-            margin-top: 20px;
+            border-radius: 8px;
         }
 
         button {
-            margin: 5px;
+            margin: 5px 0;
             padding: 8px 12px;
             cursor: pointer;
+            border: none;
+            background: #007bff;
+            color: white;
+            border-radius: 4px;
         }
 
-        input {
-            margin: 5px;
+        button:hover {
+            background: #0056b3;
+        }
+
+        input[type="file"], input[type="text"] {
+            margin: 5px 0 10px 0;
+            width: 100%;
         }
 
         #resumen {
@@ -37,24 +60,43 @@
 </head>
 <body>
 
-<h2>KMZ Corrector</h2>
+<h2>Herramientas KMZ</h2>
 
-<label>KMZ Bueno:</label>
-<input type="file" id="bueno" accept=".KMZ"><br>
+<div class="container">
+    <!-- FUNCIÓN 1: CORRECCIÓN Y MAPA -->
+    <div class="box">
+        <h3>1. Corrección y Edición en Mapa</h3>
+        <label>KMZ Bueno:</label>
+        <input type="file" id="bueno" accept=".KMZ"><br>
 
-<label>KMZ Malo:</label>
-<input type="file" id="malo" accept=".KMZ"><br>
+        <label>KMZ Malo:</label>
+        <input type="file" id="malo" accept=".KMZ"><br>
 
-<label>Nombre del archivo:</label>
-<input type="text" id="nombre" placeholder="mi_kmz_corregido"><br>
+        <label>Nombre del archivo formateado:</label>
+        <input type="text" id="nombre" placeholder="mi_kmz_corregido"><br>
 
-<button onclick="subir()">Cargar</button>
-<button onclick="corregir()">Corregir</button>
-<button onclick="descargar()">Descargar</button>
-<button onclick="guardarCambios()">Guardar cambios</button>
+        <button onclick="subir()">Cargar</button>
+        <button onclick="corregir()">Corregir</button>
+        <button onclick="guardarCambios()">Guardar cambios</button>
+        <button onclick="descargar()">Descargar</button>
 
-<h3>Resumen</h3>
-<div id="resumen">Sin datos aún...</div>
+        <h4>Resumen</h4>
+        <div id="resumen">Sin datos aún...</div>
+    </div>
+
+    <!-- FUNCIÓN 2: RENUMERACIÓN INDEPENDIENTE -->
+    <div class="box">
+        <h3>2. Renumeración Independiente de Postes</h3>
+        <p><small>Sube un archivo KMZ/KML y re-enumerará secuencialmente los pines dentro de carpetas llamadas <b>'Postes'</b>.</small></p>
+        
+        <label>KMZ / KML a Renumerar:</label>
+        <input type="file" id="archivo_renumerar" accept=".kmz,.kml"><br>
+
+        <button onclick="procesarRenumeracionSolo()">Renumerar y Descargar</button>
+        
+        <div id="resumen_renumerar" style="margin-top: 15px;"></div>
+    </div>
+</div>
 
 <div id="map"></div>
 

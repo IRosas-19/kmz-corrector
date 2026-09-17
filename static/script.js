@@ -289,3 +289,43 @@ function descargar() {
     let nombre = document.getElementById("nombre").value || "corregido";
     window.location = `/descargar/${sessionId}?nombre=${nombre}`;
 }
+
+// ==========================================
+// 🔢 FUNCIÓN SEPARADA: RENUMERAR INDEPENDIENTE
+// ==========================================
+function procesarRenumeracionSolo() {
+    let input = document.getElementById("archivo_renumerar");
+    if (input.files.length === 0) {
+        alert("❌ Por favor selecciona un archivo KMZ o KML");
+        return;
+    }
+
+    let formData = new FormData();
+    formData.append("archivo_kmz", input.files[0]);
+
+    let resumenDiv = document.getElementById("resumen_renumerar");
+    resumenDiv.innerHTML = "Procesando...";
+
+    fetch("/renumerar_solo", {
+        method: "POST",
+        body: formData
+    })
+    .then(res => res.json())
+    .then(data => {
+        if (data.status === "ok") {
+            resumenDiv.innerHTML = `✅ <b>Completado!</b> Se re-enumeraron <b>${data.postes}</b> postes.`;
+            
+            // Descargar inmediatamente el archivo procesado
+            let nombreSalida = "renumerado_" + input.files[0].name.replace(/\.[^/.]+$/, "");
+            window.location = `/descargar/${data.id}?nombre=${nombreSalida}`;
+        } else {
+            alert("❌ Error: " + (data.error || "No se pudo procesar"));
+            resumenDiv.innerHTML = "❌ Error en el proceso";
+        }
+    })
+    .catch(err => {
+        console.error(err);
+        alert("❌ Error al procesar archivo");
+        resumenDiv.innerHTML = "❌ Error de conexión";
+    });
+}
