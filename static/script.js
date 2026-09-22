@@ -43,9 +43,12 @@ function subir() {
         method: "POST",
         body: formData
     })
-    .then(res => {
-        if (!res.ok) throw new Error("Error en upload");
-        return res.json();
+    .then(async res => {
+        let data = await res.json().catch(() => ({}));
+        if (!res.ok) {
+            throw new Error(data.error || "Error desconocido al subir archivos");
+        }
+        return data;
     })
     .then(data => {
         sessionId = data.id;
@@ -87,7 +90,7 @@ function subir() {
     })
     .catch(err => {
         console.error(err);
-        alert("❌ Error al subir archivos");
+        alert("❌ " + err.message);
     });
 }
 
@@ -101,7 +104,13 @@ function corregir() {
     }
 
     fetch(`/corregir/${sessionId}`)
-    .then(res => res.json())
+    .then(async res => {
+        let data = await res.json().catch(() => ({}));
+        if (!res.ok) {
+            throw new Error(data.error || "Error desconocido al corregir");
+        }
+        return data;
+    })
     .then(data => {
         capaMalos.clearLayers();
         
@@ -139,36 +148,12 @@ function corregir() {
                     fillColor: "red",
                     fillOpacity: 0.7
                 }).addTo(map);
-                
-                // Variables para arrastre
-                let isDragging = false;
-                
+
                 circle.on('mousedown', function() {
-                    isDragging = true;
+                    markerActivo = circle;
                     map.dragging.disable();
                 });
-                
-                map.on('mousemove', function(e) {
-                    if (isDragging) {
-                        circle.setLatLng(e.latlng);
-                    }
-                });
-                
-                map.on('mouseup', function(e) {
-                    if (isDragging) {
-                        isDragging = false;
-                        map.dragging.enable();
-                        
-                        // Actualizar coordenadas
-                        let newPos = circle.getLatLng();
-                        let punto = puntos.find(x => x.marker === circle);
-                        if (punto) {
-                            punto.coord = [newPos.lng, newPos.lat];
-                            guardarCambios();
-                        }
-                    }
-                });
-                
+
                 circle.bindPopup("🔴 Arrástrame (mantén clic)");
                 
                 puntos.push({
@@ -198,9 +183,36 @@ function corregir() {
     })
     .catch(err => {
         console.error(err);
-        alert("❌ Error al corregir");
+        alert("❌ " + err.message);
     });
 }
+
+// =====================
+// 🖱️ ARRASTRE DE PUNTOS ROJOS (un solo listener global,
+// en vez de uno por punto — evita listeners duplicados)
+// =====================
+let markerActivo = null;
+
+map.on('mousemove', function(e) {
+    if (markerActivo) {
+        markerActivo.setLatLng(e.latlng);
+    }
+});
+
+map.on('mouseup', function() {
+    if (markerActivo) {
+        map.dragging.enable();
+
+        let newPos = markerActivo.getLatLng();
+        let punto = puntos.find(x => x.marker === markerActivo);
+        if (punto) {
+            punto.coord = [newPos.lng, newPos.lat];
+            guardarCambios();
+        }
+
+        markerActivo = null;
+    }
+});
 
 // =====================
 // 💾 GUARDAR CAMBIOS
@@ -241,7 +253,13 @@ function guardarCambios() {
         },
         body: JSON.stringify(datosParaServidor)
     })
-    .then(res => res.json())
+    .then(async res => {
+        let data = await res.json().catch(() => ({}));
+        if (!res.ok) {
+            throw new Error(data.error || "Error desconocido al guardar cambios");
+        }
+        return data;
+    })
     .then(data => {
         if (movidos > 0) {
             console.log(`✅ ${movidos} punto(s) movido(s) manualmente`);
@@ -249,7 +267,7 @@ function guardarCambios() {
     })
     .catch(err => {
         console.error("Error guardando:", err);
-        alert("❌ Error al guardar cambios");
+        alert("❌ " + err.message);
     });
 }
 
