@@ -2,6 +2,7 @@ from flask import Flask, render_template, request, send_file, jsonify
 import zipfile
 import os
 import uuid
+import re
 import xml.etree.ElementTree as ET
 from scipy.spatial import KDTree
 
@@ -26,6 +27,44 @@ NS_DEFAULT = {'kml': 'http://www.opengis.net/kml/2.2'}
 class ArchivoInvalidoError(Exception):
     """Se lanza cuando el archivo no es un KMZ/KML válido o legible."""
     pass
+
+
+# ----------- PARSER SEGURO Y TOLERANTE DE XML SUCIO -----------
+def parsear_xml_seguro(kml_bytes_o_str):
+    """
+    Parsea el contenido de un KML tolerando etiquetas XML 'sucias' o mal formadas
+    (ej. etiquetas inyectadas por Word/Excel con prefijos de namespace no declarados).
+
+    Intenta primero usar `lxml` con `recover=True`. Si `lxml` no está disponible,
+    limpia las etiquetas problemáticas mediante regex antes de pasar el XML a ElementTree.
+    """
+    if isinstance(kml_bytes_o_str, bytes):
+        content_str = kml_bytes_o_str.decode('utf-8', errors='ignore')
+    else:
+        content_str = kml_bytes_o_str
+
+    # 1. Intento primario: lxml en modo de recuperación (recover=True)
+    try:
+        from lxml import etree
+        parser = etree.XMLParser(recover=True, encoding='utf-8')
+        # lxml devuelve un ElementTree / Element compatible
+        root_lxml = etree.fromstring(content_str.encode('utf-8'), parser=parser)
+        # Convertimos la salida de lxml a una estructura limpia que xml.etree.ElementTree pueda manejar sin problemas
+        kml_clean = etree.tostring(root_lxml, encoding='utf-8')
+        return ET.fromstring(kml_clean)
+    except ImportError:
+        pass  # lxml no está instalado, se usa fallback
+    except Exception:
+        pass  # Si lxml falla por otra razón, se procede al fallback
+
+    # 2. Fallback: Sanitización mediante Regex + ElementTree estándar
+    # Elimina etiquetas con namespaces no declarados (ej: <o:p>, </o:p>, <v:shape ...>)
+    cleaned_str = re.sub(r'</?[a-zA-Z_][a-zA-Z0-9_\-]*:[a-zA-Z0-9_\-]+[^>]*>', '', content_str)
+    
+    try:
+        return ET.fromstring(cleaned_str)
+    except ET.ParseError as e:
+        raise ArchivoInvalidoError(f"El XML del KML está severamente dañado o mal formado: {e}")
 
 
 # ----------- DETECCIÓN DE NAMESPACE REAL -----------
@@ -109,10 +148,7 @@ def leer_kml_bytes(ruta_o_fileobj, nombre_archivo):
 
 # ----------- LÓGICA DE RENUMERACIÓN DE POSTES -----------
 def renumerar_postes_kml_bytes(kml_content):
-    try:
-        root = ET.fromstring(kml_content)
-    except ET.ParseError as e:
-        raise ArchivoInvalidoError(f"El XML del KML está mal formado: {e}")
+    root = parsear_xml_seguro(kml_content)
 
     ns = detectar_namespace(root)
     if ns.get('kml'):
@@ -143,10 +179,7 @@ def extraer_kmz(ruta_kmz):
     nombre_archivo = os.path.basename(ruta_kmz)
     kml_data, _ = leer_kml_bytes(ruta_kmz, nombre_archivo)
 
-    try:
-        root = ET.fromstring(kml_data)
-    except ET.ParseError as e:
-        raise ArchivoInvalidoError(f"El XML de '{nombre_archivo}' está mal formado: {e}")
+    root = parsear_xml_seguro(kml_data)
 
     ns = detectar_namespace(root)
     puntos = []
